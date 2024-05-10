@@ -22,7 +22,7 @@ class MyNetwork(AlexNet):
     def __init__(self,
                  model_name: str = 'alexnet',  # 'resnet18',  # 'vgg16',
                  num_classes: int = 200,
-                 dropout: float = 0.5
+                 dropout: float = 0.3
         ):
         super().__init__()
 
@@ -43,19 +43,14 @@ class MyNetwork(AlexNet):
             # nn.ReLU(inplace=True),
             # nn.MaxPool2d(kernel_size=3, stride=2),
             # 수정 후:
-            nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
+            nn.Conv2d(3, 16, kernel_size=11, stride=4, padding=2),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(64, 192, kernel_size=5, padding=2),
+            nn.Conv2d(16, 32, kernel_size=5, padding=2),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(192, 384, kernel_size=3, padding=1),
+            nn.Conv2d(32, 128, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(384, 384, kernel_size=3, padding=1),  # Additional convolutional layer
-            nn.ReLU(inplace=True),
-            nn.Conv2d(384, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
         )

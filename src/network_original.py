@@ -12,76 +12,31 @@ from torchvision.models.alexnet import AlexNet
 import torch
 
 # Custom packages
-from src.metric import MyAccuracy, MyF1Score
+from src.metric import MyAccuracy
 import src.config as cfg
 from src.util import show_setting
 
 
 # [TODO: Optional] Rewrite this class if you want
 class MyNetwork(AlexNet):
-    def __init__(self,
-                 model_name: str = 'alexnet',  # 'resnet18',  # 'vgg16',
-                 num_classes: int = 200,
-                 dropout: float = 0.5
-        ):
+    def __init__(self):
         super().__init__()
 
         # [TODO] Modify feature extractor part in AlexNet
-        self.features = nn.Sequential(
-            # 수정 전:
-            # nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
-            # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(kernel_size=3, stride=2),
-            # nn.Conv2d(64, 192, kernel_size=5, padding=2),
-            # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(kernel_size=3, stride=2),
-            # nn.Conv2d(192, 384, kernel_size=3, padding=1),
-            # nn.ReLU(inplace=True),
-            # nn.Conv2d(384, 256, kernel_size=3, padding=1),
-            # nn.ReLU(inplace=True),
-            # nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(kernel_size=3, stride=2),
-            # 수정 후:
-            nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(64, 192, kernel_size=5, padding=2),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(192, 384, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(384, 384, kernel_size=3, padding=1),  # Additional convolutional layer
-            nn.ReLU(inplace=True),
-            nn.Conv2d(384, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-        )
-        self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=dropout),
-            nn.Linear(256 * 6 * 6, 4096),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
-            nn.Linear(4096, 4096),
-            nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes),
-        )
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # [TODO: Optional] Modify this as well if you want
         x = self.features(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.classifier(x)  # ; print(x.shape)
+        x = self.classifier(x)
         return x
 
 
 class SimpleClassifier(LightningModule):
     def __init__(self,
-                 model_name: str = 'resnet18',  # 'resnet18',  # 'vgg16',
+                 model_name: str = 'resnet18',
                  num_classes: int = 200,
                  optimizer_params: Dict = dict(),
                  scheduler_params: Dict = dict(),
@@ -95,16 +50,12 @@ class SimpleClassifier(LightningModule):
             models_list = models.list_models()
             assert model_name in models_list, f'Unknown model name: {model_name}. Choose one from {", ".join(models_list)}'
             self.model = models.get_model(model_name, num_classes=num_classes)
-        print('MODEL:', model_name)
 
         # Loss function
         self.loss_fn = nn.CrossEntropyLoss()
-        # print('LOSS:', 'crossEntropy')
 
         # Metric
         self.accuracy = MyAccuracy()
-        self.f1 = MyF1Score()
-        # print('METRIC:', 'acc & f1')
 
         # Hyperparameters
         self.save_hyperparameters()
@@ -123,33 +74,25 @@ class SimpleClassifier(LightningModule):
         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
     def forward(self, x):
-        # print('x:', x.shape)
-        # print('self.model:', self.model)
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
-        # print('\nTRAIN...')
         loss, scores, y = self._common_step(batch)
         accuracy = self.accuracy(scores, y)
-        f1 = self.f1(scores, y)
-        # self.log_dict({'loss/train': loss, 'accuracy/train': accuracy},  # 'f1/train': f1
-        self.log_dict({'loss/train': loss, 'accuracy/train': accuracy, 'f1/train': f1},  # 'f1/train': f1
+        self.log_dict({'loss/train': loss, 'accuracy/train': accuracy},
                       on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # print('\nVALID...')
         loss, scores, y = self._common_step(batch)
         accuracy = self.accuracy(scores, y)
-        f1 = self.f1(scores, y)
-        # self.log_dict({'loss/val': loss, 'accuracy/val': accuracy},  # 'f1/val': f1
-        self.log_dict({'loss/val': loss, 'accuracy/val': accuracy, 'f1/val': f1},  # 'f1/val': f1
+        self.log_dict({'loss/val': loss, 'accuracy/val': accuracy},
                       on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self._wandb_log_image(batch, batch_idx, scores, frequency = cfg.WANDB_IMG_LOG_FREQ)
 
     def _common_step(self, batch):
         x, y = batch
-        scores = self.forward(x)  # <----- 여기서부터 확인하기
+        scores = self.forward(x)
         loss = self.loss_fn(scores, y)
         return loss, scores, y
 
